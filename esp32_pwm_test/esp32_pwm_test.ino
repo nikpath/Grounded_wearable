@@ -1,15 +1,22 @@
-#include <analogWrite.h>
-#include <Arduino.h>
+// the number of the LED pin
+const int ledPin = 16;  // 16 corresponds to GPIO16
 
-double frequency = 20000;
-
-void setup() {
-  // put your setup code here, to run once:
-
+// setting PWM properties
+const int freq = 5000;
+const int ledChannel = 0;
+const int resolution = 8;
+ 
+void setup(){
+  // configure LED PWM functionalitites
+  ledcSetup(ledChannel, freq, resolution);
+  
+  // attach the channel to the GPIO to be controlled
+  ledcAttachPin(ledPin, ledChannel);
 }
+ 
+void loop(){
 
-void loop() {
-  analogWriteFrequency(15,frequency);
-  analogWrite(15, 266, 1023);
-
+    ledcWrite(ledChannel, 127);
+    delay(1000);
+ 
 }
