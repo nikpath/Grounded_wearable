@@ -8,28 +8,35 @@
 #include "BLEDevice.h"
 //#include "BLEScan.h"
 
+#include <analogWrite.h>
+#include <Arduino.h>
+
 // The remote service we wish to connect to.
 static BLEUUID serviceUUID("4fafc201-1fb5-459e-8fcc-c5c9c331914b");
 // The characteristic of the remote service we are interested in.
-static BLEUUID    charUUID("9b898352-69c8-4250-b283-eb372485c415 ");
+static BLEUUID    charUUID("59613ebd-37e4-4c49-8f2d-a4d440207607");
 
 static boolean doConnect = false;
-static boolean connected = false;
-static boolean doScan = false;
+static boolean isConnected = false;
+static boolean doScan = true;
 static BLERemoteCharacteristic* pRemoteCharacteristic;
 static BLEAdvertisedDevice* myDevice;
+
+boolean BLS_ON = false;
+double frequency = 20000;
 
 static void notifyCallback(
   BLERemoteCharacteristic* pBLERemoteCharacteristic,
   uint8_t* pData,
   size_t length,
   bool isNotify) {
-    Serial.print("Notify callback for characteristic ");
-    Serial.print(pBLERemoteCharacteristic->getUUID().toString().c_str());
-    Serial.print(" of data length ");
-    Serial.println(length);
     Serial.print("data: ");
     Serial.println((char*)pData);
+    if(BLS_ON == true){
+      BLS_ON = false;
+      } else {
+        BLS_ON = true;
+        }
 }
 
 class MyClientCallback : public BLEClientCallbacks {
@@ -37,7 +44,7 @@ class MyClientCallback : public BLEClientCallbacks {
   }
 
   void onDisconnect(BLEClient* pclient) {
-    connected = false;
+    isConnected = false;
     Serial.println("onDisconnect");
   }
 };
@@ -54,7 +61,6 @@ bool connectToServer() {
     // Connect to the remove BLE Server.
     pClient->connect(myDevice);  // if you pass BLEAdvertisedDevice instead of address, it will be recognized type of peer device address (public or private)
     Serial.println(" - Connected to server");
-    pClient->setMTU(517); //set client to request maximum MTU from server (default is 23 otherwise)
   
     // Obtain a reference to the service we are after in the remote BLE server.
     BLERemoteService* pRemoteService = pClient->getService(serviceUUID);
@@ -82,12 +88,13 @@ bool connectToServer() {
       std::string value = pRemoteCharacteristic->readValue();
       Serial.print("The characteristic value was: ");
       Serial.println(value.c_str());
-    }
+        
+       }
 
-    if(pRemoteCharacteristic->canNotify())
+    if(pRemoteCharacteristic->canNotify()){
       pRemoteCharacteristic->registerForNotify(notifyCallback);
-
-    connected = true;
+    }
+    isConnected = true;
     return true;
 }
 /**
@@ -102,14 +109,15 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     Serial.println(advertisedDevice.toString().c_str());
 
     // We have found a device, let us now see if it contains the service we are looking for.
-    if (advertisedDevice.haveServiceUUID() && advertisedDevice.isAdvertisingService(serviceUUID)) {
-
+    if (advertisedDevice.getName() == "Grounded_wearable_1") {
+      doScan = false;
       BLEDevice::getScan()->stop();
+      Serial.println("FOUND iTTTTTT");
       myDevice = new BLEAdvertisedDevice(advertisedDevice);
       doConnect = true;
-      doScan = true;
+      doScan = false;
 
-    } // Found our server
+    }  // Found our server
   } // onResult
 }; // MyAdvertisedDeviceCallbacks
 
@@ -117,6 +125,8 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting Arduino BLE Client application...");
+  analogWriteFrequency(15,frequency); //stop
+        analogWrite(15, 0, 1023);
   BLEDevice::init("");
 
   // Retrieve a Scanner and set the callback we want to use to be informed when we
@@ -127,7 +137,6 @@ void setup() {
   pBLEScan->setInterval(1349);
   pBLEScan->setWindow(449);
   pBLEScan->setActiveScan(true);
-  pBLEScan->start(5, false);
 } // End of setup.
 
 
@@ -138,6 +147,7 @@ void loop() {
   // BLE Server with which we wish to connect.  Now we connect to it.  Once we are 
   // connected we set the connected flag to be true.
   if (doConnect == true) {
+    BLEDevice::getScan()->stop();
     if (connectToServer()) {
       Serial.println("We are now connected to the BLE Server.");
     } else {
@@ -148,15 +158,29 @@ void loop() {
 
   // If we are connected to a peer BLE Server, update the characteristic each time we are reached
   // with the current time since boot.
-  if (connected) {
-    String newValue = "Time since boot: " + String(millis()/1000);
-    Serial.println("Setting new characteristic value to \"" + newValue + "\"");
-    
-    // Set the characteristic's value to be the array of bytes that is actually a string.
-    pRemoteCharacteristic->writeValue(newValue.c_str(), newValue.length());
-  }else if(doScan){
-    BLEDevice::getScan()->start(0);  // this is just example to start scan after disconnect, most likely there is better way to do it in arduino
+  if (isConnected) {
+    BLEDevice::getScan()->stop();
+    if(BLS_ON){
+      Serial.println("BLS ON");
+        analogWriteFrequency(15,frequency); //start
+        analogWrite(15, 266, 1023);
+        delay(200);  // delay one second
+        
+        analogWriteFrequency(15,frequency); //stop
+        analogWrite(15, 0, 1023);
+        delay(3000); //wait 50 seconds.
+        
+        } else if (!BLS_ON) { //ensure motors are off
+          Serial.println("BLS OFF");
+          analogWriteFrequency(15,frequency); //stop
+        analogWrite(15, 0, 1023);
+        
+        }
+      
+  }else if(doScan == true){
+    Serial.println("SCANNING AGAIN");
+    BLEDevice::getScan()->start(5, false);  // this is just example to start scan after disconnect, most likely there is better way to do it in arduino
   }
   
-  delay(1000); // Delay a second between loops.
+  delay(2000); // Delay a second between loops.
 } // End of loop

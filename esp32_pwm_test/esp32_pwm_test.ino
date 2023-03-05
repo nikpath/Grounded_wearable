@@ -1,22 +1,19 @@
-// the number of the LED pin
-const int ledPin = 16;  // 16 corresponds to GPIO16
+#include <analogWrite.h>
+#include <Arduino.h>
 
-// setting PWM properties
-const int freq = 5000;
-const int ledChannel = 0;
-const int resolution = 8;
- 
+double frequency = 20000;
+
 void setup(){
-  // configure LED PWM functionalitites
-  ledcSetup(ledChannel, freq, resolution);
-  
-  // attach the channel to the GPIO to be controlled
-  ledcAttachPin(ledPin, ledChannel);
 }
  
 void loop(){
-
-    ledcWrite(ledChannel, 127);
-    delay(1000);
+  Serial.println("hello");
+analogWriteFrequency(15,frequency); //start
+        analogWrite(15, 266, 1023);
+        delay(2000);  // delay one second
+        
+        analogWriteFrequency(15,frequency); //stop
+        analogWrite(15, 0, 1023);
+  delay(3000);
  
 }
