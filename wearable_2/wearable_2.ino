@@ -32,11 +32,11 @@ static void notifyCallback(
   bool isNotify) {
     Serial.print("data: ");
     Serial.println((char*)pData);
-    if(BLS_ON == true){
-      BLS_ON = false;
-      } else {
-        BLS_ON = true;
-        }
+    analogWriteFrequency(15,frequency); //start
+    analogWrite(15, 266, 1023);
+    delay(1000);  // delay one second
+    analogWriteFrequency(15,frequency); //stop
+    analogWrite(15, 0, 1023);
 }
 
 class MyClientCallback : public BLEClientCallbacks {
@@ -160,22 +160,6 @@ void loop() {
   // with the current time since boot.
   if (isConnected) {
     BLEDevice::getScan()->stop();
-    if(BLS_ON){
-      Serial.println("BLS ON");
-        analogWriteFrequency(15,frequency); //start
-        analogWrite(15, 266, 1023);
-        delay(200);  // delay one second
-        
-        analogWriteFrequency(15,frequency); //stop
-        analogWrite(15, 0, 1023);
-        delay(3000); //wait 50 seconds.
-        
-        } else if (!BLS_ON) { //ensure motors are off
-          Serial.println("BLS OFF");
-          analogWriteFrequency(15,frequency); //stop
-        analogWrite(15, 0, 1023);
-        
-        }
       
   }else if(doScan == true){
     Serial.println("SCANNING AGAIN");

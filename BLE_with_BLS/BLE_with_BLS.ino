@@ -29,7 +29,7 @@ bool BLS_ON = false;
  * Pulse sensor constants
 */
 const int OUTPUT_TYPE = SERIAL_PLOTTER;
-const int PULSE_INPUT = 26;
+const int PULSE_INPUT = 35;
 /*
  * EDA sensor constants
 */
@@ -76,22 +76,18 @@ class MyCallbacks: public BLECharacteristicCallbacks {
         Serial.print("New value: ");
         for (int i = 0; i < value.length(); i++){
           Serial.print(value[i]);
-          if (value[i] == 1){
+          if (value[i] == 1){ //pause polling
             pausePolling = true;
-          } else if (value[i] == 2){
+          } else if (value[i] == 2){ //unpause polling
             pausePolling = false;
-            } else if (value[i] == '3') { //pause polling and start BLS
-            Serial.print("paused and bls");
+            } else if (value[i] == '3') { //dont pause polling and start bls
+            Serial.print("bls");
             pausePolling = true;
             BLS_ON = true;
-            pCharacteristic_BLS->setValue("1");
-            pCharacteristic_BLS->notify();
           } else if (value[i] == '4') { //pause BLS start polling
-            Serial.print("paused and no bls");
+            Serial.print("unpaused and no bls");
             pausePolling = false;
             BLS_ON = false;
-            pCharacteristic_BLS->setValue("0");
-            pCharacteristic_BLS->notify();
             
           }
         }
@@ -179,6 +175,7 @@ void loop() {
       if(!pausePolling) {
         if (pulseSensor.sawNewSample()) {
           if (--samplesUntilReport == (byte) 0) {
+            Serial.println("POLLING ON");
             samplesUntilReport = SAMPLES_PER_SERIAL_SAMPLE;
             HR = analogRead(PULSE_INPUT);
             EDA=analogRead(GSR_INPUT);
@@ -191,25 +188,22 @@ void loop() {
           }
          }
       } else if(BLS_ON) {
-        Serial.println("BLS ON");
+        Serial.println("BLS ON 1");
         analogWriteFrequency(15,frequency); //start
         analogWrite(15, 266, 1023);
         delay(1000);  // delay one second
+
         
+        pCharacteristic_BLS->setValue("y");
+        pCharacteristic_BLS->notify();
         analogWriteFrequency(15,frequency); //stop
         analogWrite(15, 0, 1023);
         delay(3000); //wait 50 seconds.
         
-        } else if (!BLS_ON) { //ensure motors are off
-          Serial.println("BLS OFF");
-          analogWriteFrequency(15,frequency); //stop
-        analogWrite(15, 0, 1023);
-        
-        }
-      else {
+        } else {
         Serial.println("waiting to resume");
         delay(2000);
-        }
+      }
     }
     // disconnecting
     if (!deviceConnected && oldDeviceConnected) {
