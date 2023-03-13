@@ -7,8 +7,8 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
+//#include "soc/soc.h"
+//#include "soc/rtc_cntl_reg.h"
 
 
 // See the following for generating UUIDs:
@@ -22,7 +22,7 @@
 void setup() {
   //Serial.begin(115200);
   //Serial.println("Starting BLE work!");
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable   detector
+  //WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable   detector
 
   BLEDevice::init("HI DEV BOARD");
   BLEServer *pServer = BLEDevice::createServer();
@@ -42,7 +42,7 @@ void setup() {
   pAdvertising->setMinPreferred(0x06);  // functions that help with iPhone connections issue
   pAdvertising->setMinPreferred(0x12);
   BLEDevice::startAdvertising();
-  Serial.println("Characteristic defined! Now you can read it in your phone!");
+  //sSerial.println("Characteristic defined! Now you can read it in your phone!");
 }
 
 void loop() {

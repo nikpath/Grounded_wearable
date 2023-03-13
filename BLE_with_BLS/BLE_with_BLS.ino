@@ -9,6 +9,8 @@
 #include <BLE2902.h>
 #define USE_ARDUINO_INTERRUPTS false
 #include <PulseSensorPlayground.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 
 #include <analogWrite.h>
 #include <Arduino.h>
@@ -29,11 +31,11 @@ bool BLS_ON = false;
  * Pulse sensor constants
 */
 const int OUTPUT_TYPE = SERIAL_PLOTTER;
-const int PULSE_INPUT = 35;
+const int PULSE_INPUT = 39;
 /*
  * EDA sensor constants
 */
-const int GSR_INPUT=34;
+const int GSR_INPUT=36;
 
 uint32_t HR = 0;
 uint32_t EDA = 0;
@@ -100,10 +102,11 @@ class MyCallbacks: public BLECharacteristicCallbacks {
 
 void setup() {
   Serial.begin(115200);
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0); //disable   detector
   BLS_ON = false;
 
-  analogWriteFrequency(15,frequency); //stop
-  analogWrite(15, 0, 1023);
+  analogWriteFrequency(22,frequency); //stop
+  analogWrite(22, 0, 1023);
 
   // Create the BLE Device
   BLEDevice::init("Grounded_wearable_1");
@@ -189,15 +192,15 @@ void loop() {
          }
       } else if(BLS_ON) {
         Serial.println("BLS ON 1");
-        analogWriteFrequency(15,frequency); //start
-        analogWrite(15, 266, 1023);
+        analogWriteFrequency(22,frequency); //start
+        analogWrite(22, 266, 1023);
         delay(1000);  // delay one second
 
         
         pCharacteristic_BLS->setValue("y");
         pCharacteristic_BLS->notify();
-        analogWriteFrequency(15,frequency); //stop
-        analogWrite(15, 0, 1023);
+        analogWriteFrequency(22,frequency); //stop
+        analogWrite(22, 0, 1023);
         delay(3000); //wait 50 seconds.
         
         } else {

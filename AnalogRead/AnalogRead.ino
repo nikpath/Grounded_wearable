@@ -2,10 +2,18 @@
 #include <PulseSensorPlayground.h>
 
 const int OUTPUT_TYPE = SERIAL_PLOTTER;
-const int PULSE_INPUT = 26;
-const int PULSE_THRESHOLD = 2000; 
+const int PULSE_INPUT = 39;
+int HRSignal; // Analog signal to read
+
+//report a sample every 100 milliseconds (50 samples) [10 Hz]
+byte samplesUntilReport;  
+const byte SAMPLES_PER_SERIAL_SAMPLE = 50; 
 
 PulseSensorPlayground pulseSensor;
+
+//GSR reading
+const int GSR=36;
+int EDAsensorValue;
 
 void setup() {
   // initialize serial communication at 115200 bits per second:
@@ -17,6 +25,7 @@ void setup() {
   pulseSensor.setSerial(Serial);
   pulseSensor.setOutputType(OUTPUT_TYPE);
   //pulseSensor.setThreshold(PULSE_THRESHOLD);
+  samplesUntilReport = SAMPLES_PER_SERIAL_SAMPLE;
 
   // Now that everything is ready, start reading the PulseSensor signal.
   if (!pulseSensor.begin()) {
@@ -28,13 +37,15 @@ void setup() {
 }
 
 void loop() {
-  // read the analog / millivolts value for pin 2:
-  int analogValue = analogRead(PULSE_INPUT);
-  //int analogVolts = analogReadMilliVolts(2);
-  
-  // print out the values you read:
-  Serial.printf("ADC analog value = %d\n",analogValue);
-  //Serial.printf("ADC millivolts value = %d\n",analogVolts);
-  
-  delay(1000);  // delay in between reads for clear read from serial
+  if (pulseSensor.sawNewSample()) {
+    if (--samplesUntilReport == (byte) 0) {
+      samplesUntilReport = SAMPLES_PER_SERIAL_SAMPLE;
+      HRSignal = analogRead(PULSE_INPUT);
+      EDAsensorValue=analogRead(GSR);
+      Serial.println("HR: ");
+      Serial.println(HRSignal);
+      Serial.println("EDA: ");
+      Serial.println(EDAsensorValue);
+    }
+  }
 }
