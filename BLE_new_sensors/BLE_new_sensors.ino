@@ -11,10 +11,10 @@
 #include <PulseSensorPlayground.h>
 
 BLEServer* pServer = NULL;
-BLECharacteristic* pCharacteristic_BPM = NULL;
-BLECharacteristic* pCharacteristic_IBI = NULL;
+BLECharacteristic* pCharacteristic_HR = NULL;
 BLECharacteristic* pCharacteristic_EDA = NULL;
 BLECharacteristic* pCharacteristic_PAUSE = NULL;
+
 bool deviceConnected = false;
 bool oldDeviceConnected = false;
 bool pausePolling = false;
@@ -24,17 +24,17 @@ bool pausePolling = false;
 */
 const int OUTPUT_TYPE = SERIAL_PLOTTER;
 const int PULSE_INPUT = 26;
-const int PULSE_THRESHOLD = 2000;   // Adjust this number to avoid noise when idle
-
 /*
  * EDA sensor constants
 */
-const int GSR=31;
-const int EDA_THRESHOLD=0;
+const int GSR_INPUT=34;
 
-uint32_t BPM = 0;
-uint32_t IBI = 0;
+uint32_t HR = 0;
 uint32_t EDA = 0;
+
+byte samplesUntilReport;
+const byte SAMPLES_PER_SERIAL_SAMPLE = 50; 
+
 /*
    All the PulseSensor Playground functions.
 */
@@ -44,8 +44,7 @@ PulseSensorPlayground pulseSensor;
 // https://www.uuidgenerator.net/
 
 #define SERVICE_UUID        "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID_BPM "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-#define CHARACTERISTIC_UUID_IBI "98260937-1924-4af9-a874-3ad204344e1e"
+#define CHARACTERISTIC_UUID_HR "beb5483e-36e1-4688-b7f5-ea07361b26a8"
 #define CHARACTERISTIC_UUID_EDA "58260ca5-a468-496a-8f8c-ad30a21ba7cf"
 #define CHARACTERISTIC_UUID_PAUSE "885bccf9-007a-4050-aa92-a9da38199deb"
 
@@ -74,8 +73,6 @@ class MyCallbacks: public BLECharacteristicCallbacks {
             pausePolling = false;
             }
         }
-
-        Serial.println();
         Serial.println("*********");
       }
   }
@@ -95,14 +92,8 @@ void setup() {
   BLEService *pService = pServer->createService(SERVICE_UUID);
 
   // Create BLE Characteristics
-  pCharacteristic_BPM = pService->createCharacteristic(
-                      CHARACTERISTIC_UUID_BPM,
-                      BLECharacteristic::PROPERTY_READ   |
-                      BLECharacteristic::PROPERTY_NOTIFY 
-                    );
-   
-  pCharacteristic_IBI = pService->createCharacteristic(
-                      CHARACTERISTIC_UUID_IBI,
+  pCharacteristic_HR = pService->createCharacteristic(
+                      CHARACTERISTIC_UUID_HR,
                       BLECharacteristic::PROPERTY_READ   |
                       BLECharacteristic::PROPERTY_NOTIFY 
                     );
@@ -122,8 +113,7 @@ pCharacteristic_PAUSE->setCallbacks(new MyCallbacks());
 
   // https://www.bluetooth.com/specifications/gatt/viewer?attributeXmlFile=org.bluetooth.descriptor.gatt.client_characteristic_configuration.xml
   // Create BLE Descriptors
-  pCharacteristic_BPM->addDescriptor(new BLE2902());
-  pCharacteristic_IBI->addDescriptor(new BLE2902());
+  pCharacteristic_HR->addDescriptor(new BLE2902());
   pCharacteristic_EDA->addDescriptor(new BLE2902());
   pCharacteristic_PAUSE->addDescriptor(new BLE2902());
 
@@ -143,7 +133,6 @@ pCharacteristic_PAUSE->setCallbacks(new MyCallbacks());
 
   pulseSensor.setSerial(Serial);
   pulseSensor.setOutputType(OUTPUT_TYPE);
-  pulseSensor.setThreshold(PULSE_THRESHOLD);
 
   // Now that everything is ready, start reading the PulseSensor signal.
   if (!pulseSensor.begin()) {
@@ -154,21 +143,23 @@ pCharacteristic_PAUSE->setCallbacks(new MyCallbacks());
 void loop() {
       // notify changed value
     if (deviceConnected) {
-      Serial.println(pausePolling);
       if(!pausePolling) {
-         BPM = pulseSensor.getBeatsPerMinute();
-         IBI = pulseSensor.getInterBeatIntervalMs();
-         EDA = analogRead(GSR);
-      
-        pCharacteristic_BPM->setValue((uint8_t*)&BPM, 4);
-        pCharacteristic_IBI->setValue((uint8_t*)&IBI, 4);
-        pCharacteristic_EDA->setValue((uint8_t*)&EDA, 4);
-        pCharacteristic_BPM->notify();
-        pCharacteristic_IBI->notify();
-        pCharacteristic_EDA->notify();
-        Serial.println(EDA);
-        
-        delay(100); // bluetooth stack will go into congestion, if too many packets are sent, in 6 hours test i was able to go as low as 3ms
+        if (pulseSensor.sawNewSample()) {
+          if (--samplesUntilReport == (byte) 0) {
+            Serial.println("POLLING");
+            samplesUntilReport = SAMPLES_PER_SERIAL_SAMPLE;
+            HR = analogRead(PULSE_INPUT);
+            EDA=analogRead(GSR_INPUT);
+
+            pCharacteristic_HR->setValue((uint8_t*)&HR, 4);
+            pCharacteristic_EDA->setValue((uint8_t*)&EDA, 4);
+            pCharacteristic_HR->notify();
+            pCharacteristic_EDA->notify();
+            //Serial.println(HR);
+            //Serial.println(EDA);
+        //delay(100);
+          }
+         }
       } else {
         Serial.println("waiting to resume");
         delay(2000);
